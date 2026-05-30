@@ -550,15 +550,14 @@
     serverTimestamp, query, orderBy
   } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
-  /* Firebase key 分段存放（公開 web key，安全性由 Firestore Rules 保護） */
-  const _a = ['AIzaSy','AYQhNavPSce17XtvDC5x','nXyl9iUhW9KjA'].join('');
+  /* Firebase 設定（tsai-slides 專案） */
   const cfg = {
-    apiKey: _a,
-    authDomain: 'teacherstudy-109ef.firebaseapp.com',
-    projectId: 'teacherstudy-109ef',
-    storageBucket: 'teacherstudy-109ef.firebasestorage.app',
-    messagingSenderId: '196599230156',
-    appId: '1:196599230156:web:cfe55d364df3ae1b9d5c69'
+    apiKey: 'AIzaSyAKO7uqWQXTtHdikXd6XDcXPDVJVN2BGoQ',
+    authDomain: 'tsai-slides.firebaseapp.com',
+    projectId: 'tsai-slides',
+    storageBucket: 'tsai-slides.firebasestorage.app',
+    messagingSenderId: '690030396490',
+    appId: '1:690030396490:web:a0928b1dcf9219c63ad2b3'
   };
 
   let fbApp, fdb;
