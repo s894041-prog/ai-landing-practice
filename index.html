@@ -214,6 +214,12 @@
                                      pointer-events:none; line-height:2;">
             輸入第一個答案<br>文字雲就會出現 ✨
           </div>
+          <button id="wc1-clear"
+            style="position:absolute;bottom:10px;right:10px;padding:5px 12px;
+                   background:rgba(232,100,58,0.15);color:var(--accent);border:1px solid var(--accent);
+                   border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;">
+            🗑 清空
+          </button>
         </div>
       </div>
     </section>
@@ -256,6 +262,12 @@
                                      pointer-events:none; line-height:2;">
             輸入你的想法<br>文字雲就會出現 ✨
           </div>
+          <button id="wc2-clear"
+            style="position:absolute;bottom:10px;right:10px;padding:5px 12px;
+                   background:rgba(255,183,77,0.15);color:var(--warn);border:1px solid var(--warn);
+                   border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;">
+            🗑 清空
+          </button>
         </div>
       </div>
       <!-- 揭示答案 -->
@@ -547,7 +559,7 @@
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
   import {
     getFirestore, collection, addDoc, onSnapshot,
-    serverTimestamp, query, orderBy
+    serverTimestamp, query, orderBy, getDocs, deleteDoc
   } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
   /* Firebase 設定（tsai-slides 專案） */
@@ -693,6 +705,18 @@
     if (e.currentSlide?.id === 'slide-wordcloud-ch1') setTimeout(() => wc1.draw(), 150);
     if (e.currentSlide?.id === 'slide-wordcloud-ch2') setTimeout(() => wc2.draw(), 150);
   });
+
+  /* ── 清空按鈕 ── */
+  async function clearCollection(colName) {
+    if (!fdb) return;
+    if (!confirm(`確定要清空「${colName}」的所有資料嗎？`)) return;
+    const snap = await getDocs(collection(fdb, colName));
+    const dels = snap.docs.map(d => deleteDoc(d.ref));
+    await Promise.all(dels);
+  }
+
+  document.getElementById('wc1-clear')?.addEventListener('click', () => clearCollection('wordcloud_ch1'));
+  document.getElementById('wc2-clear')?.addEventListener('click', () => clearCollection('wordcloud_ch2'));
 </script>
 
 </body>
