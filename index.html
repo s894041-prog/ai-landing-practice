@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>一個國小老師的AI落地實戰</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reset.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/night.css" />
+  <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.min.js"></script>
+  <style>
+    :root {
+      --accent:  #e8643a;
+      --accent2: #4fc3f7;
+      --success: #81c784;
+      --warn:    #ffb74d;
+    }
+    .reveal { font-family: 'Microsoft JhengHei', 'Noto Sans TC', 'Segoe UI', sans-serif; }
+    .reveal h1, .reveal h2, .reveal h3 {
+      font-family: 'Microsoft JhengHei', 'Noto Sans TC', 'Segoe UI', sans-serif;
+      font-weight: 700; letter-spacing: -0.02em;
+    }
+    .reveal h1 { font-size: 2em; }
+    .reveal h2 { font-size: 1.4em; color: var(--accent2); }
+    .reveal .progress { color: var(--accent); }
+    .reveal .fragment { opacity: 0.15; }
+    .reveal .fragment.visible { opacity: 1; }
+
+    /* 封面 */
+    .title-slide { text-align: center; }
+    .title-slide .tag {
+      display: inline-block; background: var(--accent); color: #fff;
+      padding: 4px 16px; border-radius: 20px; font-size: 0.5em;
+      letter-spacing: 0.1em; margin-bottom: 0.8em; font-weight: 600;
+    }
+    .title-slide .subtitle { font-size: 0.65em; color: #aaa; margin-top: 0.5em; }
+    .title-slide .author   { margin-top: 2em; font-size: 0.45em; color: #777; }
+
+    /* 章節標題 */
+    .chapter-title { text-align: center; }
+    .chapter-title .ch-num {
+      font-size: 0.5em; color: var(--accent); font-weight: 800;
+      letter-spacing: 0.15em; margin-bottom: 0.3em;
+    }
+    .chapter-title h2 { font-size: 1.8em; color: #fff; }
+    .chapter-title .ch-line {
+      width: 60px; height: 3px; background: var(--accent);
+      margin: 0.8em auto; border-radius: 2px;
+    }
+
+    /* 統計卡 */
+    .stat-row { display: flex; gap: 20px; justify-content: center; margin-top: 0.8em; }
+    .stat-card {
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px; padding: 18px 22px; text-align: center; flex: 1;
+    }
+    .stat-card .num   { font-size: 1.6em; font-weight: 800; color: var(--accent); line-height: 1; }
+    .stat-card .label { font-size: 0.38em; color: #ccc; margin-top: 6px; }
+
+    /* 清單卡片 */
+    .list-card {
+      background: rgba(255,255,255,0.05); border-left: 4px solid var(--accent2);
+      border-radius: 8px; padding: 14px 18px; margin-bottom: 10px; font-size: 0.5em; color: #ddd;
+    }
+    .list-card .lc-title { font-weight: 700; color: var(--accent2); margin-bottom: 4px; font-size: 1.1em; }
+    .list-card .lc-sub   { color: #aaa; font-size: 0.9em; line-height: 1.5; }
+
+    /* VS 對比 */
+    .vs-grid { display: grid; grid-template-columns: 1fr 50px 1fr; gap: 0; align-items: start; margin-top: 0.6em; }
+    .vs-col { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; }
+    .vs-col.left-col  { border-top: 3px solid var(--accent2); }
+    .vs-col.right-col { border-top: 3px solid var(--warn); }
+    .vs-label { font-size: 0.65em; font-weight: 700; margin-bottom: 8px; }
+    .vs-label.left  { color: var(--accent2); }
+    .vs-label.right { color: var(--warn); }
+    .vs-center { display: flex; align-items: center; justify-content: center; font-size: 1.2em; font-weight: 900; color: #555; }
+    .vs-col ul { font-size: 0.4em; list-style: none; padding: 0; margin: 0; }
+    .vs-col ul li { padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.06); color: #ccc; }
+    .vs-col ul li:last-child { border-bottom: none; }
+    .vs-col ul li::before { content: "✦ "; opacity: 0.5; }
+
+    /* 三欄模型卡 */
+    .model-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 0.6em; }
+    .model-card {
+      background: rgba(255,255,255,0.05); border-radius: 10px; padding: 16px; text-align: center;
+    }
+    .model-card.opus   { border-top: 4px solid #ce93d8; }
+    .model-card.sonnet { border-top: 4px solid var(--accent2); }
+    .model-card.haiku  { border-top: 4px solid var(--success); }
+    .model-card .mc-name  { font-size: 0.6em; font-weight: 800; margin-bottom: 8px; }
+    .model-card.opus   .mc-name { color: #ce93d8; }
+    .model-card.sonnet .mc-name { color: var(--accent2); }
+    .model-card.haiku  .mc-name { color: var(--success); }
+    .model-card .mc-desc  { font-size: 0.38em; color: #bbb; line-height: 1.6; }
+    .model-card .mc-tag {
+      display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.32em;
+      margin-top: 8px; font-weight: 700;
+    }
+    .model-card.opus   .mc-tag { background: rgba(206,147,216,0.2); color: #ce93d8; }
+    .model-card.sonnet .mc-tag { background: rgba(79,195,247,0.2); color: var(--accent2); }
+    .model-card.haiku  .mc-tag { background: rgba(129,199,132,0.2); color: var(--success); }
+
+    /* 工具卡 */
+    .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 0.6em; }
+    .tool-card {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; padding: 14px;
+    }
+    .tool-card .tc-icon  { font-size: 1.4em; margin-bottom: 6px; }
+    .tool-card .tc-name  { font-size: 0.5em; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+    .tool-card .tc-desc  { font-size: 0.38em; color: #aaa; line-height: 1.5; }
+
+    /* 引用 */
+    .quote-box {
+      background: rgba(255,255,255,0.05); border-left: 4px solid var(--accent);
+      border-radius: 8px; padding: 18px 22px; margin: 0.6em 0;
+      font-size: 0.55em; color: #ddd; font-style: italic; line-height: 1.8;
+    }
+    .quote-author { font-size: 0.38em; color: #888; text-align: right; margin-top: 6px; font-style: normal; }
+
+    /* 警示卡 */
+    .warn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 0.6em; }
+    .warn-card {
+      background: rgba(255,183,77,0.08); border: 1px solid rgba(255,183,77,0.25);
+      border-radius: 10px; padding: 14px;
+    }
+    .warn-card .wc2-num  { font-size: 1.2em; font-weight: 800; color: var(--warn); line-height: 1; }
+    .warn-card .wc2-title { font-size: 0.48em; font-weight: 700; color: #eee; margin: 4px 0; }
+    .warn-card .wc2-desc  { font-size: 0.38em; color: #aaa; line-height: 1.5; }
+
+    /* 封底 */
+    .end-slide { text-align: center; }
+    .end-slide .big { font-size: 3.5em; margin-bottom: 0.2em; }
+    .end-slide .tagline { font-size: 0.6em; color: #aaa; }
+
+    /* 互動文字雲共用 */
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    /* 摘要答案揭示 */
+    .reveal-answer {
+      background: rgba(79,195,247,0.08); border: 1px solid rgba(79,195,247,0.25);
+      border-radius: 10px; padding: 14px 18px; margin-top: 10px;
+    }
+    .reveal-answer .ra-title { font-size: 0.42em; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+    .reveal-answer ul { font-size: 0.4em; list-style: none; padding: 0; margin: 0; color: #ccc; }
+    .reveal-answer ul li { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .reveal-answer ul li::before { content: "→ "; color: var(--accent2); }
+    .reveal-answer ul li:last-child { border-bottom: none; }
+  </style>
+</head>
+<body>
+<div class="reveal">
+  <div class="slides">
+
+    <!-- ① 封面 -->
+    <section>
+      <div class="title-slide" style="padding: 20px 0;">
+        <div class="tag">教學分享 · 2026</div>
+        <h1 style="color:#fff; line-height:1.3;">一個國小老師的<br><span style="color:var(--accent);">AI 落地實戰</span></h1>
+        <p class="subtitle">從「玩玩看」到「真的在用」——行政端 AI 工具化的親身經歷</p>
+        <div style="margin-top: 1.5em; display:flex; justify-content:center; gap:24px;">
+          <div class="stat-card" style="flex:0 0 auto; padding:12px 20px;">
+            <div class="num">21<span style="font-size:0.5em">年</span></div>
+            <div class="label">行政工作經歷</div>
+          </div>
+          <div class="stat-card" style="flex:0 0 auto; padding:12px 20px;">
+            <div class="num">8<span style="font-size:0.5em">章</span></div>
+            <div class="label">今天要分享的內容</div>
+          </div>
+          <div class="stat-card" style="flex:0 0 auto; padding:12px 20px;">
+            <div class="num">5<span style="font-size:0.5em">個</span></div>
+            <div class="label">親手做的 AI 工具</div>
+          </div>
+        </div>
+        <p class="author">蔡志益老師</p>
+      </div>
+    </section>
+
+    <!-- ② 第一章：你想用AI做什麼 — 文字雲 -->
+    <section id="slide-wordcloud-ch1">
+      <h2 style="font-size:1em; margin-bottom:0.3em;">第一章 ／ 你想用 AI 做什麼？</h2>
+      <div style="display:grid; grid-template-columns:240px 1fr; gap:14px; height:450px;">
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="background:rgba(255,255,255,0.06); border-radius:10px; padding:14px;">
+            <div style="font-size:0.38em; color:var(--accent2); font-weight:700; margin-bottom:8px;">你想用 AI 做什麼事？</div>
+            <input id="wc1-input" type="text" placeholder="輸入關鍵詞…" maxlength="20"
+              style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid rgba(79,195,247,0.3);
+                     background:rgba(255,255,255,0.08); color:#fff; font-size:13px;
+                     box-sizing:border-box; font-family:inherit; outline:none;" />
+            <button id="wc1-btn"
+              style="width:100%; margin-top:8px; padding:9px; background:var(--accent2); color:#0d1117;
+                     border:none; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer;">
+              送出 ↵
+            </button>
+          </div>
+          <div style="background:rgba(255,255,255,0.06); border-radius:10px; padding:14px; flex:1; overflow:hidden; display:flex; flex-direction:column;">
+            <div style="font-size:0.38em; color:var(--accent2); font-weight:700; margin-bottom:8px;">
+              熱門答案
+              <span style="display:inline-block; background:#ff4757; color:#fff; padding:2px 7px;
+                           border-radius:10px; font-size:0.85em; animation:pulse 1.5s infinite;">LIVE</span>
+            </div>
+            <div id="wc1-list" style="font-size:0.34em; overflow-y:auto; flex:1; color:#ccc;"></div>
+            <div style="margin-top:8px; font-size:0.32em; color:#666; border-top:1px solid rgba(255,255,255,0.08); padding-top:6px;">
+              總提交：<span id="wc1-total" style="color:var(--accent); font-weight:700;">0</span>
+              不同答案：<span id="wc1-unique" style="color:var(--accent2); font-weight:700;">0</span>
+            </div>
+          </div>
+        </div>
+        <div style="background:rgba(255,255,255,0.04); border-radius:12px; overflow:hidden;
+                    position:relative; border:1px solid rgba(255,255,255,0.07);">
+          <canvas id="wc1-canvas" style="width:100%; height:100%; display:block;"></canvas>
+          <div id="wc1-empty" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+                                     color:#444; font-size:0.42em; text-align:center;
+                                     pointer-events:none; line-height:2;">
+            輸入第一個答案<br>文字雲就會出現 ✨
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ③ 第二章：為什麼是我在做這件事 — 文字雲 + 揭示答案 -->
+    <section id="slide-wordcloud-ch2">
+      <h2 style="font-size:0.9em; margin-bottom:0.2em;">第二章 ／ 為什麼是我在做這件事？</h2>
+      <div style="display:grid; grid-template-columns:220px 1fr; gap:12px; height:360px;">
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="background:rgba(255,255,255,0.06); border-radius:10px; padding:12px;">
+            <div style="font-size:0.36em; color:var(--warn); font-weight:700; margin-bottom:6px;">你覺得行政端 AI 工具少的原因？</div>
+            <input id="wc2-input" type="text" placeholder="輸入你的想法…" maxlength="20"
+              style="width:100%; padding:7px 10px; border-radius:8px; border:1px solid rgba(255,183,77,0.3);
+                     background:rgba(255,255,255,0.08); color:#fff; font-size:12px;
+                     box-sizing:border-box; font-family:inherit; outline:none;" />
+            <button id="wc2-btn"
+              style="width:100%; margin-top:7px; padding:8px; background:var(--warn); color:#0d1117;
+                     border:none; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer;">
+              送出 ↵
+            </button>
+          </div>
+          <div style="background:rgba(255,255,255,0.06); border-radius:10px; padding:12px; flex:1; overflow:hidden; display:flex; flex-direction:column;">
+            <div style="font-size:0.34em; color:var(--warn); font-weight:700; margin-bottom:6px;">
+              大家的看法
+              <span style="display:inline-block; background:#ff4757; color:#fff; padding:1px 6px;
+                           border-radius:10px; font-size:0.85em; animation:pulse 1.5s infinite;">LIVE</span>
+            </div>
+            <div id="wc2-list" style="font-size:0.32em; overflow-y:auto; flex:1; color:#ccc;"></div>
+            <div style="margin-top:6px; font-size:0.3em; color:#666; border-top:1px solid rgba(255,255,255,0.08); padding-top:5px;">
+              總提交：<span id="wc2-total" style="color:var(--accent); font-weight:700;">0</span>
+            </div>
+          </div>
+        </div>
+        <div style="background:rgba(255,255,255,0.04); border-radius:12px; overflow:hidden;
+                    position:relative; border:1px solid rgba(255,255,255,0.07);">
+          <canvas id="wc2-canvas" style="width:100%; height:100%; display:block;"></canvas>
+          <div id="wc2-empty" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+                                     color:#444; font-size:0.4em; text-align:center;
+                                     pointer-events:none; line-height:2;">
+            輸入你的想法<br>文字雲就會出現 ✨
+          </div>
+        </div>
+      </div>
+      <!-- 揭示答案 -->
+      <div class="reveal-answer fragment" style="margin-top:10px;">
+        <div class="ra-title">蔡老師的觀察（21年行政經歷）</div>
+        <ul>
+          <li>教學端 AI 競爭激烈，行政端幾乎沒人做</li>
+          <li>重複性高的行政工作：公文撰寫、成績繕打、對帳——最適合 AI 介入</li>
+          <li>「從 AI 生成到 AI 落地」——不是玩具，是工具</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ④ 第三章A：選對工具 — Claude vs GPT vs Gemini -->
+    <section>
+      <div class="chapter-title" style="margin-bottom:0.5em;">
+        <div class="ch-num">CHAPTER 3</div>
+        <h2 style="color:#fff; font-size:1.3em;">選對工具，才不會亂花錢</h2>
+        <div class="ch-line"></div>
+      </div>
+      <div class="vs-grid" style="grid-template-columns: 1fr 40px 1fr 40px 1fr;">
+        <div class="vs-col left-col">
+          <div class="vs-label left">Claude（Anthropic）</div>
+          <ul>
+            <li>長文處理能力強</li>
+            <li>指令遵循度高</li>
+            <li>適合文書、腳本、行政</li>
+            <li>有 Skill / MCP 擴充</li>
+            <li>中文理解精準</li>
+          </ul>
+        </div>
+        <div class="vs-center" style="font-size:0.8em; color:#333;">VS</div>
+        <div class="vs-col" style="border-top:3px solid var(--accent);">
+          <div class="vs-label" style="color:var(--accent);">ChatGPT（OpenAI）</div>
+          <ul>
+            <li>知名度最高</li>
+            <li>生圖（DALL-E）強</li>
+            <li>外掛工具生態豐富</li>
+            <li>適合圖像創作</li>
+            <li>價格偏高</li>
+          </ul>
+        </div>
+        <div class="vs-center" style="font-size:0.8em; color:#333;">VS</div>
+        <div class="vs-col right-col">
+          <div class="vs-label right">Gemini（Google）</div>
+          <ul>
+            <li>與 Google 服務整合</li>
+            <li>適合 Google Workspace</li>
+            <li>免費方案較大方</li>
+            <li>多模態能力佳</li>
+            <li>中文表現持續進步</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ⑤ 第三章B：模型分工 -->
+    <section>
+      <h2>Sonnet / Haiku / Opus 怎麼分工？</h2>
+      <div class="model-grid">
+        <div class="model-card opus fragment">
+          <div class="mc-name">⚙️ Opus</div>
+          <div class="mc-desc">最強推理能力<br>適合複雜任務<br>長文分析、策略規劃</div>
+          <div class="mc-tag">重要決策用</div>
+        </div>
+        <div class="model-card sonnet fragment">
+          <div class="mc-name">🚀 Sonnet</div>
+          <div class="mc-desc">速度與品質平衡<br>日常工作首選<br>文書撰寫、程式開發</div>
+          <div class="mc-tag">主力使用</div>
+        </div>
+        <div class="model-card haiku fragment">
+          <div class="mc-name">⚡ Haiku</div>
+          <div class="mc-desc">快速輕量<br>簡單分類、摘要<br>大量批次處理</div>
+          <div class="mc-tag">快速任務用</div>
+        </div>
+      </div>
+      <div class="quote-box fragment" style="margin-top:1em;">
+        一個月 600–700 元值不值？<br>
+        <strong style="color:var(--accent);">「一天請到一個賣命聰明的人工作 2 小時」</strong>
+        <div class="quote-author">——蔡志益老師的計算方式</div>
+      </div>
+    </section>
+
+    <!-- ⑥ 第四章：我做了什麼工具 -->
+    <section>
+      <div class="chapter-title" style="margin-bottom:0.5em;">
+        <div class="ch-num">CHAPTER 4</div>
+        <h2 style="color:#fff;">我做了什麼工具</h2>
+        <div class="ch-line"></div>
+      </div>
+      <div class="tool-grid">
+        <div class="tool-card fragment">
+          <div class="tc-icon">📄</div>
+          <div class="tc-name">公文機器人</div>
+          <div class="tc-desc">輸入主旨，自動產出符合格式的公文草稿，節省 80% 撰寫時間</div>
+        </div>
+        <div class="tool-card fragment">
+          <div class="tc-icon">🍱</div>
+          <div class="tc-name">午餐對帳機器人</div>
+          <div class="tc-desc">匯入訂單資料，自動比對金額、彙整差異，告別 Excel 手算</div>
+        </div>
+        <div class="tool-card fragment">
+          <div class="tc-icon">📝</div>
+          <div class="tc-name">閩客語成績繕打 Skill</div>
+          <div class="tc-desc">從 Google Sheets 讀取成績，自動填入學務系統，整班 3 分鐘完成</div>
+        </div>
+        <div class="tool-card fragment">
+          <div class="tc-icon">📅</div>
+          <div class="tc-name">課程計畫表自動生成</div>
+          <div class="tc-desc">輸入課程主題與學習目標，自動產出四欄式課程計畫表</div>
+        </div>
+        <div class="tool-card fragment" style="grid-column: 1 / -1;">
+          <div class="tc-icon">📱</div>
+          <div class="tc-name">iPad 無邊記搭配 Claude 工作流</div>
+          <div class="tc-desc">手寫記錄 → OCR 辨識 → Claude 整理成結構化文件，課後會議記錄零負擔</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ⑦ 第五章：踩過的坑 -->
+    <section>
+      <div class="chapter-title" style="margin-bottom:0.5em;">
+        <div class="ch-num">CHAPTER 5</div>
+        <h2 style="color:#fff;">踩過的坑，幫你省時間</h2>
+        <div class="ch-line"></div>
+      </div>
+      <div class="warn-grid">
+        <div class="warn-card fragment">
+          <div class="wc2-num">01</div>
+          <div class="wc2-title">Session 用很快的原因</div>
+          <div class="wc2-desc">貼了太多文件、長截圖、反覆修改——Token 消耗比你想像的快 3 倍</div>
+        </div>
+        <div class="warn-card fragment">
+          <div class="wc2-num">02</div>
+          <div class="wc2-title">MCP 到 Chrome 的資源消耗</div>
+          <div class="wc2-desc">Chrome extension + MCP server 同時運行，記憶體佔用需要關注</div>
+        </div>
+        <div class="warn-card fragment">
+          <div class="wc2-num">03</div>
+          <div class="wc2-title">學務系統只能用 find+form_input</div>
+          <div class="wc2-desc">政府系統多為舊式 DOM，navigate/click 常失敗，改用 find 定位元素才穩定</div>
+        </div>
+        <div class="warn-card fragment">
+          <div class="wc2-num">04</div>
+          <div class="wc2-title">正確率八成——何時需要人工確認？</div>
+          <div class="wc2-desc">成績、公文、金額類資料——AI 輸出永遠需要人眼最終確認</div>
+        </div>
+        <div class="warn-card fragment">
+          <div class="wc2-num">05</div>
+          <div class="wc2-title">Token / Session / Limit 怎麼控制</div>
+          <div class="wc2-desc">善用 /compact、拆分任務、用 Haiku 處理簡單工作，有效延長 Session</div>
+        </div>
+        <div class="warn-card fragment">
+          <div class="wc2-num">06</div>
+          <div class="wc2-title">不要追求「一次到位」</div>
+          <div class="wc2-desc">先跑通 80%，再用人工補 20%——半自動就是最好的自動化</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ⑧ 第六章：建立知識庫 -->
+    <section>
+      <div class="chapter-title" style="margin-bottom:0.6em;">
+        <div class="ch-num">CHAPTER 6</div>
+        <h2 style="color:#fff;">建立你自己的知識庫</h2>
+        <div class="ch-line"></div>
+      </div>
+      <div class="list-card fragment">
+        <div class="lc-title">為什麼要用 MD 檔案？</div>
+        <div class="lc-sub">Markdown 是最輕量的結構化格式，Claude 對 MD 的解讀能力遠優於 Word/PDF——讓 AI 更容易理解你的內容</div>
+      </div>
+      <div class="list-card fragment">
+        <div class="lc-title">Skill 是什麼，怎麼包？</div>
+        <div class="lc-sub">把重複性任務的「作法 + 範例 + 規則」寫成一份 SKILL.md，Claude 每次執行都會遵循——等於在訓練你的私人助理</div>
+      </div>
+      <div class="list-card fragment">
+        <div class="lc-title">個人文章知識庫的建法</div>
+        <div class="lc-sub">用 CLAUDE.md 記錄個人偏好、常用格式、學校規定——讓 Claude 每次對話都「認識你」</div>
+      </div>
+      <div class="list-card fragment">
+        <div class="lc-title">讓 Claude 認識你這個人</div>
+        <div class="lc-sub">Memory 功能 + 個人化 CLAUDE.md：記錄你的說話風格、慣用詞彙、工作情境，對話品質直接提升</div>
+      </div>
+    </section>
+
+    <!-- ⑨ 第七章：真心話 -->
+    <section>
+      <div class="chapter-title" style="margin-bottom:0.6em;">
+        <div class="ch-num">CHAPTER 7</div>
+        <h2 style="color:#fff;">我對 AI 的真心話</h2>
+        <div class="ch-line"></div>
+      </div>
+      <div class="quote-box fragment">
+        不是每件事都適合 AI
+        <div class="quote-author">陪孩子的時間、需要同理心的對話——這些是人類的專屬領域</div>
+      </div>
+      <div class="quote-box fragment">
+        「把認知資源留給真正需要人類判斷的事」
+        <div class="quote-author">——讓 AI 做搬運工，讓老師做教育者</div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:0.8em;">
+        <div class="list-card fragment" style="border-left-color:var(--warn);">
+          <div class="lc-title" style="color:var(--warn);">缺的不是工具</div>
+          <div class="lc-sub">缺的是肯陪孩子走的老師。AI 是手段，陪伴才是目的。</div>
+        </div>
+        <div class="list-card fragment" style="border-left-color:var(--success);">
+          <div class="lc-title" style="color:var(--success);">半自動就夠了</div>
+          <div class="lc-sub">不用追求全自動。80% AI + 20% 人工確認，才是最穩定的工作流。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ⑩ 第八章：未來怎麼走 -->
+    <section>
+      <div class="chapter-title" style="margin-bottom:0.6em;">
+        <div class="ch-num">CHAPTER 8</div>
+        <h2 style="color:#fff;">未來怎麼走</h2>
+        <div class="ch-line"></div>
+      </div>
+      <div class="list-card fragment">
+        <div class="lc-title">這些詞會進入教育現場</div>
+        <div class="lc-sub">
+          <span style="color:var(--accent2);">MD（Markdown）</span> /
+          <span style="color:var(--accent2);">MCP（工具串接）</span> /
+          <span style="color:var(--accent2);">Agent（自動執行）</span> /
+          <span style="color:var(--accent2);">Skill（技能包）</span>
+          ——不懂不可怕，但要知道它們代表什麼方向
+        </div>
+      </div>
+      <div class="list-card fragment">
+        <div class="lc-title">行政 AI 化的下一步</div>
+        <div class="lc-sub">表單 → 報告的自動轉換、跨系統資料串接（學務 + 成績 + 公文）——行政效率可以再提升 50%</div>
+      </div>
+      <div class="list-card fragment">
+        <div class="lc-title">你的工作流，只有你最懂</div>
+        <div class="lc-sub">
+          每個老師的情境不同。別複製別人的工具——用 Claude 打造屬於你自己的工作流。<br>
+          <span style="color:var(--accent); font-weight:700;">最好的 AI 工具，是你自己做的那個。</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ⑪ 封底 -->
+    <section>
+      <div class="end-slide">
+        <div class="big">🙏</div>
+        <h1 style="color:var(--accent2);">謝謝你的參與</h1>
+        <p class="tagline">「缺的不是工具，是肯陪孩子走的老師」</p>
+        <div style="margin-top:2em; display:flex; justify-content:center; gap:20px; flex-wrap:wrap;">
+          <div style="font-size:0.4em; color:#666; background:rgba(255,255,255,0.05);
+                      border-radius:8px; padding:10px 16px; text-align:center;">
+            <div style="color:var(--accent2); font-weight:700; margin-bottom:4px;">GitHub</div>
+            github.com/s894041-prog
+          </div>
+          <div style="font-size:0.4em; color:#666; background:rgba(255,255,255,0.05);
+                      border-radius:8px; padding:10px 16px; text-align:center;">
+            <div style="color:var(--accent2); font-weight:700; margin-bottom:4px;">講師</div>
+            蔡志益老師
+          </div>
+          <div style="font-size:0.4em; color:#666; background:rgba(255,255,255,0.05);
+                      border-radius:8px; padding:10px 16px; text-align:center;">
+            <div style="color:var(--accent2); font-weight:700; margin-bottom:4px;">主題</div>
+            AI 落地實戰
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    transition: 'slide',
+    transitionSpeed: 'default',
+    backgroundTransition: 'fade',
+    center: true,
+    progress: true,
+    controls: true,
+    slideNumber: 'c/t',
+    plugins: []
+  });
+</script>
+
+<!-- ===== Firebase 文字雲 CH1 ===== -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
+  import {
+    getFirestore, collection, addDoc, onSnapshot,
+    serverTimestamp, query, orderBy
+  } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAYQhNavPSce17XtvDC5xnXyl9iUhW9KjA",
+    authDomain: "teacherstudy-109ef.firebaseapp.com",
+    projectId: "teacherstudy-109ef",
+    storageBucket: "teacherstudy-109ef.firebasestorage.app",
+    messagingSenderId: "196599230156",
+    appId: "1:196599230156:web:cfe55d364df3ae1b9d5c69"
+  };
+  const app1 = initializeApp(firebaseConfig, 'app1');
+  const fdb1 = getFirestore(app1);
+  const wordsRef1 = collection(fdb1, 'ai_landing_wordcloud_ch1');
+
+  const COLORS = ['#4fc3f7','#e8643a','#ffb74d','#81c784','#ce93d8','#80deea','#f48fb1'];
+  let wc1Data = [];
+
+  async function wc1Submit() {
+    const input = document.getElementById('wc1-input');
+    const word = input.value.trim();
+    if (!word) return;
+    const btn = document.getElementById('wc1-btn');
+    btn.disabled = true;
+    try {
+      await addDoc(wordsRef1, { word, created_at: serverTimestamp() });
+      input.value = '';
+    } catch(e) { console.error(e); }
+    finally { btn.disabled = false; }
+  }
+
+  document.getElementById('wc1-input')?.addEventListener('keypress', e => {
+    if (e.key === 'Enter') wc1Submit();
+  });
+  document.getElementById('wc1-btn')?.addEventListener('click', wc1Submit);
+
+  onSnapshot(query(wordsRef1, orderBy('created_at', 'asc')), snap => {
+    const words = [];
+    snap.forEach(doc => words.push(doc.data().word));
+    const counts = {};
+    words.forEach(w => counts[w] = (counts[w] || 0) + 1);
+    wc1Data = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+    document.getElementById('wc1-total').textContent = words.length;
+    document.getElementById('wc1-unique').textContent = wc1Data.length;
+
+    const listEl = document.getElementById('wc1-list');
+    listEl.innerHTML = wc1Data.slice(0, 12).map(([w, c]) =>
+      `<div style="display:flex;justify-content:space-between;padding:4px 0;
+                   border-bottom:1px solid rgba(255,255,255,0.06);">
+        <span>${w}</span><span style="color:var(--accent);font-weight:700;">${c}</span>
+      </div>`
+    ).join('') || '<div style="color:#555;padding:8px 0;">尚無資料</div>';
+
+    const empty = document.getElementById('wc1-empty');
+    if (empty) empty.style.display = wc1Data.length > 0 ? 'none' : '';
+    drawWC1();
+  });
+
+  function drawWC1() {
+    const canvas = document.getElementById('wc1-canvas');
+    if (!canvas || typeof WordCloud === 'undefined') return;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width < 10 || rect.height < 10) return;
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    if (wc1Data.length === 0) return;
+    const maxCount = wc1Data[0][1];
+    WordCloud(canvas, {
+      list: wc1Data.map(([w, c]) => [w, Math.max(18, Math.round((c / maxCount) * 76))]),
+      gridSize: 6, weightFactor: 1,
+      fontFamily: '"Microsoft JhengHei", "Noto Sans TC", sans-serif',
+      color: () => COLORS[Math.floor(Math.random() * COLORS.length)],
+      backgroundColor: 'transparent', rotateRatio: 0.3, shuffle: true,
+    });
+  }
+
+  Reveal.on('slidechanged', e => {
+    if (e.currentSlide?.id === 'slide-wordcloud-ch1') setTimeout(drawWC1, 150);
+  });
+</script>
+
+<!-- ===== Firebase 文字雲 CH2 ===== -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
+  import {
+    getFirestore, collection, addDoc, onSnapshot,
+    serverTimestamp, query, orderBy
+  } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAYQhNavPSce17XtvDC5xnXyl9iUhW9KjA",
+    authDomain: "teacherstudy-109ef.firebaseapp.com",
+    projectId: "teacherstudy-109ef",
+    storageBucket: "teacherstudy-109ef.firebasestorage.app",
+    messagingSenderId: "196599230156",
+    appId: "1:196599230156:web:cfe55d364df3ae1b9d5c69"
+  };
+  const app2 = initializeApp(firebaseConfig, 'app2');
+  const fdb2 = getFirestore(app2);
+  const wordsRef2 = collection(fdb2, 'ai_landing_wordcloud_ch2');
+
+  const COLORS = ['#ffb74d','#4fc3f7','#e8643a','#81c784','#ce93d8','#80deea','#f48fb1'];
+  let wc2Data = [];
+
+  async function wc2Submit() {
+    const input = document.getElementById('wc2-input');
+    const word = input.value.trim();
+    if (!word) return;
+    const btn = document.getElementById('wc2-btn');
+    btn.disabled = true;
+    try {
+      await addDoc(wordsRef2, { word, created_at: serverTimestamp() });
+      input.value = '';
+    } catch(e) { console.error(e); }
+    finally { btn.disabled = false; }
+  }
+
+  document.getElementById('wc2-input')?.addEventListener('keypress', e => {
+    if (e.key === 'Enter') wc2Submit();
+  });
+  document.getElementById('wc2-btn')?.addEventListener('click', wc2Submit);
+
+  onSnapshot(query(wordsRef2, orderBy('created_at', 'asc')), snap => {
+    const words = [];
+    snap.forEach(doc => words.push(doc.data().word));
+    const counts = {};
+    words.forEach(w => counts[w] = (counts[w] || 0) + 1);
+    wc2Data = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+    document.getElementById('wc2-total').textContent = words.length;
+
+    const listEl = document.getElementById('wc2-list');
+    listEl.innerHTML = wc2Data.slice(0, 10).map(([w, c]) =>
+      `<div style="display:flex;justify-content:space-between;padding:3px 0;
+                   border-bottom:1px solid rgba(255,255,255,0.06);">
+        <span>${w}</span><span style="color:var(--warn);font-weight:700;">${c}</span>
+      </div>`
+    ).join('') || '<div style="color:#555;padding:6px 0;">尚無資料</div>';
+
+    const empty = document.getElementById('wc2-empty');
+    if (empty) empty.style.display = wc2Data.length > 0 ? 'none' : '';
+    drawWC2();
+  });
+
+  function drawWC2() {
+    const canvas = document.getElementById('wc2-canvas');
+    if (!canvas || typeof WordCloud === 'undefined') return;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width < 10 || rect.height < 10) return;
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    if (wc2Data.length === 0) return;
+    const maxCount = wc2Data[0][1];
+    WordCloud(canvas, {
+      list: wc2Data.map(([w, c]) => [w, Math.max(16, Math.round((c / maxCount) * 68))]),
+      gridSize: 6, weightFactor: 1,
+      fontFamily: '"Microsoft JhengHei", "Noto Sans TC", sans-serif',
+      color: () => COLORS[Math.floor(Math.random() * COLORS.length)],
+      backgroundColor: 'transparent', rotateRatio: 0.3, shuffle: true,
+    });
+  }
+
+  Reveal.on('slidechanged', e => {
+    if (e.currentSlide?.id === 'slide-wordcloud-ch2') setTimeout(drawWC2, 150);
+  });
+</script>
+
+</body>
+</html>
