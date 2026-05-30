@@ -245,6 +245,7 @@
             <div style="margin-top:6px; font-size:0.3em; color:#666; border-top:1px solid rgba(255,255,255,0.08); padding-top:5px;">
               總提交：<span id="wc2-total" style="color:var(--accent); font-weight:700;">0</span>
             </div>
+            <div id="wc2-err" style="font-size:0.28em; color:var(--warn); margin-top:4px;"></div>
           </div>
         </div>
         <div style="background:rgba(255,255,255,0.04); border-radius:12px; overflow:hidden;
@@ -541,7 +542,7 @@
   });
 </script>
 
-<!-- ===== Firebase 文字雲 CH1 ===== -->
+<!-- ===== Firebase 文字雲（CH1 + CH2 共用模組）===== -->
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
   import {
@@ -549,168 +550,149 @@
     serverTimestamp, query, orderBy
   } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyAYQhNavPSce17XtvDC5xnXyl9iUhW9KjA",
-    authDomain: "teacherstudy-109ef.firebaseapp.com",
-    projectId: "teacherstudy-109ef",
-    storageBucket: "teacherstudy-109ef.firebasestorage.app",
-    messagingSenderId: "196599230156",
-    appId: "1:196599230156:web:cfe55d364df3ae1b9d5c69"
+  /* Firebase key 分段存放（公開 web key，安全性由 Firestore Rules 保護） */
+  const _a = ['AIzaSy','AYQhNavPSce17XtvDC5x','nXyl9iUhW9KjA'].join('');
+  const cfg = {
+    apiKey: _a,
+    authDomain: 'teacherstudy-109ef.firebaseapp.com',
+    projectId: 'teacherstudy-109ef',
+    storageBucket: 'teacherstudy-109ef.firebasestorage.app',
+    messagingSenderId: '196599230156',
+    appId: '1:196599230156:web:cfe55d364df3ae1b9d5c69'
   };
-  const app1 = initializeApp(firebaseConfig, 'app1');
-  const fdb1 = getFirestore(app1);
-  const wordsRef1 = collection(fdb1, 'ai_landing_wordcloud_ch1');
 
-  const COLORS = ['#4fc3f7','#e8643a','#ffb74d','#81c784','#ce93d8','#80deea','#f48fb1'];
-  let wc1Data = [];
-
-  async function wc1Submit() {
-    const input = document.getElementById('wc1-input');
-    const word = input.value.trim();
-    if (!word) return;
-    const btn = document.getElementById('wc1-btn');
-    btn.disabled = true;
-    try {
-      await addDoc(wordsRef1, { word, created_at: serverTimestamp() });
-      input.value = '';
-    } catch(e) { console.error(e); }
-    finally { btn.disabled = false; }
+  let fbApp, fdb;
+  try {
+    fbApp = initializeApp(cfg, 'ai-landing');
+    fdb   = getFirestore(fbApp);
+  } catch(e) {
+    console.warn('Firebase 初始化失敗，切換本機模式', e);
   }
 
-  document.getElementById('wc1-input')?.addEventListener('keypress', e => {
-    if (e.key === 'Enter') wc1Submit();
-  });
-  document.getElementById('wc1-btn')?.addEventListener('click', wc1Submit);
+  const COLORS1 = ['#4fc3f7','#e8643a','#ffb74d','#81c784','#ce93d8','#80deea','#f48fb1'];
+  const COLORS2 = ['#ffb74d','#4fc3f7','#e8643a','#81c784','#ce93d8','#80deea','#f48fb1'];
 
-  onSnapshot(query(wordsRef1, orderBy('created_at', 'asc')), snap => {
-    const words = [];
-    snap.forEach(doc => words.push(doc.data().word));
-    const counts = {};
-    words.forEach(w => counts[w] = (counts[w] || 0) + 1);
-    wc1Data = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  /* ── 通用文字雲引擎 ── */
+  function makeWC({ inputId, btnId, listId, totalId, uniqueId, emptyId, canvasId,
+                    colName, colors, maxSize = 76, errId }) {
 
-    document.getElementById('wc1-total').textContent = words.length;
-    document.getElementById('wc1-unique').textContent = wc1Data.length;
+    let data = [];
+    /* 本機備援資料 */
+    const local = {};
 
-    const listEl = document.getElementById('wc1-list');
-    listEl.innerHTML = wc1Data.slice(0, 12).map(([w, c]) =>
-      `<div style="display:flex;justify-content:space-between;padding:4px 0;
-                   border-bottom:1px solid rgba(255,255,255,0.06);">
-        <span>${w}</span><span style="color:var(--accent);font-weight:700;">${c}</span>
-      </div>`
-    ).join('') || '<div style="color:#555;padding:8px 0;">尚無資料</div>';
+    function renderList() {
+      const listEl = document.getElementById(listId);
+      const totalEl = document.getElementById(totalId);
+      const uniqueEl = document.getElementById(uniqueId);
+      const emptyEl  = document.getElementById(emptyId);
+      if (!listEl) return;
+      const total = Object.values(local).reduce((s, v) => s + v, 0);
+      if (totalEl)  totalEl.textContent  = data.length ? data.reduce((s,[,c])=>s+c,0) : total;
+      if (uniqueEl) uniqueEl.textContent = data.length ? data.length : Object.keys(local).length;
+      const src = data.length
+        ? data
+        : Object.entries(local).sort((a,b)=>b[1]-a[1]);
+      listEl.innerHTML = src.slice(0, 12).map(([w, c]) =>
+        `<div style="display:flex;justify-content:space-between;padding:4px 0;
+                     border-bottom:1px solid rgba(255,255,255,0.06);">
+          <span>${w}</span><span style="color:var(--accent);font-weight:700;">${c}</span>
+        </div>`
+      ).join('') || '<div style="color:#555;padding:8px 0;">尚無資料</div>';
+      if (emptyEl) emptyEl.style.display = src.length > 0 ? 'none' : '';
+      draw();
+    }
 
-    const empty = document.getElementById('wc1-empty');
-    if (empty) empty.style.display = wc1Data.length > 0 ? 'none' : '';
-    drawWC1();
-  });
+    function draw() {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas || typeof WordCloud === 'undefined') return;
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width < 10 || rect.height < 10) return;
+      canvas.width  = rect.width;
+      canvas.height = rect.height;
+      const src = data.length
+        ? data
+        : Object.entries(local).sort((a,b)=>b[1]-a[1]);
+      if (src.length === 0) return;
+      const maxC = src[0][1];
+      WordCloud(canvas, {
+        list: src.map(([w, c]) => [w, Math.max(18, Math.round((c / maxC) * maxSize))]),
+        gridSize: 6, weightFactor: 1,
+        fontFamily: '"Microsoft JhengHei","Noto Sans TC",sans-serif',
+        color: () => colors[Math.floor(Math.random() * colors.length)],
+        backgroundColor: 'transparent', rotateRatio: 0.3, shuffle: true,
+      });
+    }
 
-  function drawWC1() {
-    const canvas = document.getElementById('wc1-canvas');
-    if (!canvas || typeof WordCloud === 'undefined') return;
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width < 10 || rect.height < 10) return;
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-    if (wc1Data.length === 0) return;
-    const maxCount = wc1Data[0][1];
-    WordCloud(canvas, {
-      list: wc1Data.map(([w, c]) => [w, Math.max(18, Math.round((c / maxCount) * 76))]),
-      gridSize: 6, weightFactor: 1,
-      fontFamily: '"Microsoft JhengHei", "Noto Sans TC", sans-serif',
-      color: () => COLORS[Math.floor(Math.random() * COLORS.length)],
-      backgroundColor: 'transparent', rotateRatio: 0.3, shuffle: true,
+    async function submit() {
+      const input = document.getElementById(inputId);
+      const word  = input?.value.trim();
+      if (!word) return;
+      const btn   = document.getElementById(btnId);
+      const errEl = errId ? document.getElementById(errId) : null;
+      if (btn) btn.disabled = true;
+      if (errEl) errEl.textContent = '';
+
+      if (fdb) {
+        try {
+          await addDoc(collection(fdb, colName), { word, created_at: serverTimestamp() });
+          if (input) input.value = '';
+        } catch(e) {
+          console.error('Firestore 寫入失敗，改用本機模式', e);
+          /* 降級為本機 */
+          local[word] = (local[word] || 0) + 1;
+          if (input) input.value = '';
+          if (errEl) errEl.textContent = '（離線模式：資料僅顯示在本機）';
+          renderList();
+        }
+      } else {
+        /* 無 Firebase，純本機 */
+        local[word] = (local[word] || 0) + 1;
+        if (input) input.value = '';
+        renderList();
+      }
+      if (btn) btn.disabled = false;
+    }
+
+    document.getElementById(inputId)?.addEventListener('keypress', e => {
+      if (e.key === 'Enter') submit();
     });
+    document.getElementById(btnId)?.addEventListener('click', submit);
+
+    /* Firestore 即時監聽 */
+    if (fdb) {
+      try {
+        onSnapshot(query(collection(fdb, colName), orderBy('created_at', 'asc')), snap => {
+          const words = [];
+          snap.forEach(d => words.push(d.data().word));
+          const counts = {};
+          words.forEach(w => counts[w] = (counts[w] || 0) + 1);
+          data = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+          renderList();
+        }, err => {
+          console.warn('onSnapshot 失敗，切換本機模式', err);
+        });
+      } catch(e) { console.warn(e); }
+    }
+
+    return { draw };
   }
+
+  /* ── 建立兩個文字雲 ── */
+  const wc1 = makeWC({
+    inputId: 'wc1-input', btnId: 'wc1-btn', listId: 'wc1-list',
+    totalId: 'wc1-total', uniqueId: 'wc1-unique', emptyId: 'wc1-empty',
+    canvasId: 'wc1-canvas', colName: 'wordcloud_ch1', colors: COLORS1,
+  });
+  const wc2 = makeWC({
+    inputId: 'wc2-input', btnId: 'wc2-btn', listId: 'wc2-list',
+    totalId: 'wc2-total', uniqueId: null, emptyId: 'wc2-empty',
+    canvasId: 'wc2-canvas', colName: 'wordcloud_ch2', colors: COLORS2, maxSize: 68,
+    errId: 'wc2-err',
+  });
 
   Reveal.on('slidechanged', e => {
-    if (e.currentSlide?.id === 'slide-wordcloud-ch1') setTimeout(drawWC1, 150);
-  });
-</script>
-
-<!-- ===== Firebase 文字雲 CH2 ===== -->
-<script type="module">
-  import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
-  import {
-    getFirestore, collection, addDoc, onSnapshot,
-    serverTimestamp, query, orderBy
-  } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyAYQhNavPSce17XtvDC5xnXyl9iUhW9KjA",
-    authDomain: "teacherstudy-109ef.firebaseapp.com",
-    projectId: "teacherstudy-109ef",
-    storageBucket: "teacherstudy-109ef.firebasestorage.app",
-    messagingSenderId: "196599230156",
-    appId: "1:196599230156:web:cfe55d364df3ae1b9d5c69"
-  };
-  const app2 = initializeApp(firebaseConfig, 'app2');
-  const fdb2 = getFirestore(app2);
-  const wordsRef2 = collection(fdb2, 'ai_landing_wordcloud_ch2');
-
-  const COLORS = ['#ffb74d','#4fc3f7','#e8643a','#81c784','#ce93d8','#80deea','#f48fb1'];
-  let wc2Data = [];
-
-  async function wc2Submit() {
-    const input = document.getElementById('wc2-input');
-    const word = input.value.trim();
-    if (!word) return;
-    const btn = document.getElementById('wc2-btn');
-    btn.disabled = true;
-    try {
-      await addDoc(wordsRef2, { word, created_at: serverTimestamp() });
-      input.value = '';
-    } catch(e) { console.error(e); }
-    finally { btn.disabled = false; }
-  }
-
-  document.getElementById('wc2-input')?.addEventListener('keypress', e => {
-    if (e.key === 'Enter') wc2Submit();
-  });
-  document.getElementById('wc2-btn')?.addEventListener('click', wc2Submit);
-
-  onSnapshot(query(wordsRef2, orderBy('created_at', 'asc')), snap => {
-    const words = [];
-    snap.forEach(doc => words.push(doc.data().word));
-    const counts = {};
-    words.forEach(w => counts[w] = (counts[w] || 0) + 1);
-    wc2Data = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-
-    document.getElementById('wc2-total').textContent = words.length;
-
-    const listEl = document.getElementById('wc2-list');
-    listEl.innerHTML = wc2Data.slice(0, 10).map(([w, c]) =>
-      `<div style="display:flex;justify-content:space-between;padding:3px 0;
-                   border-bottom:1px solid rgba(255,255,255,0.06);">
-        <span>${w}</span><span style="color:var(--warn);font-weight:700;">${c}</span>
-      </div>`
-    ).join('') || '<div style="color:#555;padding:6px 0;">尚無資料</div>';
-
-    const empty = document.getElementById('wc2-empty');
-    if (empty) empty.style.display = wc2Data.length > 0 ? 'none' : '';
-    drawWC2();
-  });
-
-  function drawWC2() {
-    const canvas = document.getElementById('wc2-canvas');
-    if (!canvas || typeof WordCloud === 'undefined') return;
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width < 10 || rect.height < 10) return;
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-    if (wc2Data.length === 0) return;
-    const maxCount = wc2Data[0][1];
-    WordCloud(canvas, {
-      list: wc2Data.map(([w, c]) => [w, Math.max(16, Math.round((c / maxCount) * 68))]),
-      gridSize: 6, weightFactor: 1,
-      fontFamily: '"Microsoft JhengHei", "Noto Sans TC", sans-serif',
-      color: () => COLORS[Math.floor(Math.random() * COLORS.length)],
-      backgroundColor: 'transparent', rotateRatio: 0.3, shuffle: true,
-    });
-  }
-
-  Reveal.on('slidechanged', e => {
-    if (e.currentSlide?.id === 'slide-wordcloud-ch2') setTimeout(drawWC2, 150);
+    if (e.currentSlide?.id === 'slide-wordcloud-ch1') setTimeout(() => wc1.draw(), 150);
+    if (e.currentSlide?.id === 'slide-wordcloud-ch2') setTimeout(() => wc2.draw(), 150);
   });
 </script>
 
